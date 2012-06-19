@@ -372,36 +372,29 @@ enum {
 	NSString *previousCharacter = nil;
 	NSString *previousPreviousCharacter = nil;
 	
-	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-	unsigned char counter = 0;
-	
-	while (error == nil && 
-		   (currentCharacter = [self nextCharacter]) && 
-		   currentCharacter != nil) {
-		[self processComposedCharacter:currentCharacter previousCharacter:previousCharacter previousPreviousCharacter:previousPreviousCharacter];
+        unsigned char counter = 0;
         
-        if (state == CHCSVParserStateCancelled) { break; }
-        
-		previousPreviousCharacter = previousCharacter;
-		previousCharacter = currentCharacter;
+    while (error == nil && 
+           (currentCharacter = [self nextCharacter]) && 
+           currentCharacter != nil) {
+        @autoreleasepool {
+            [self processComposedCharacter:currentCharacter previousCharacter:previousCharacter previousPreviousCharacter:previousPreviousCharacter];
+            
+            if (state == CHCSVParserStateCancelled) { break; }
+            
+            previousPreviousCharacter = previousCharacter;
+            previousCharacter = currentCharacter;
+            
+            counter++;
+            if (counter == 0) { //this happens every 256 (2**8) iterations when the unsigned short overflows
+                [currentCharacter retain];
+                [previousCharacter retain];
+                [previousPreviousCharacter retain];
+                
+            }
+        }
+    }
 		
-		counter++;
-		if (counter == 0) { //this happens every 256 (2**8) iterations when the unsigned short overflows
-			[currentCharacter retain];
-			[previousCharacter retain];
-			[previousPreviousCharacter retain];
-			
-			[pool drain];
-			pool = [[NSAutoreleasePool alloc] init];
-			
-			[currentCharacter autorelease];
-			[previousCharacter autorelease];
-			[previousPreviousCharacter autorelease];
-		}
-	}
-	
-	[pool drain];
-	
 	if ([currentField length] > 0 && state == CHCSVParserStateInsideField) {
 		[self finishCurrentField];
 	}
